@@ -19,6 +19,9 @@ const app = express()
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const frontendDist = path.resolve(currentDir, '../../frontend/dist')
 
+// Render sits behind one trusted reverse proxy. This lets express-rate-limit
+// use the real client IP from X-Forwarded-For without rejecting API requests.
+app.set('trust proxy', 1)
 app.disable('x-powered-by')
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
