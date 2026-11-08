@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: portfolio-proof
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: MONGODB_URI
+        sync: false
