@@ -27,6 +27,7 @@ import { validateRequest } from '../middleware/validate.js'
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 12,
+  skipSuccessfulRequests: true,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { message: 'Too many authentication attempts. Please wait and try again.' },
@@ -264,6 +265,22 @@ export function createAuthRouter({ UserModel = User, fetchImpl = fetch } = {}) {
     }
     setSession(res, user, secret)
     res.json({ user: publicUser(user) })
+  }))
+
+  router.post('/password/change', requireAuth, [
+    body('currentPassword').isString().notEmpty().withMessage('Enter your current password.'),
+    body('newPassword').isString().isLength({ min: 10, max: 128 }).withMessage('New password must be 10–128 characters.'),
+    body('confirmPassword').custom((value, { req }) => value === req.body.newPassword).withMessage('Passwords do not match.'),
+  ], validateRequest, asyncHandler(async (req, res) => {
+    const user = await UserModel.findById(req.user._id).select('+passwordHash name email username sessionVersion')
+    if (!user?.passwordHash || !(await verifyPassword(req.body.currentPassword, user.passwordHash))) {
+      return res.status(401).json({ message: 'Current password is incorrect.' })
+    }
+    user.passwordHash = await hashPassword(req.body.newPassword)
+    user.sessionVersion = (user.sessionVersion || 0) + 1
+    await user.save()
+    setSession(res, user, getSessionSecret())
+    res.json({ message: 'Password changed successfully.' })
   }))
 
   router.post('/password-reset/request', passwordResetRateLimit, [
