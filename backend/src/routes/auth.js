@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import { body } from 'express-validator'
 import { randomUUID, timingSafeEqual } from 'node:crypto'
 import User from '../models/User.js'
@@ -27,6 +27,14 @@ import { validateRequest } from '../middleware/validate.js'
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 12,
+  // Rate-limit each client IP + account identifier, so people sharing a
+  // college/home network do not block one another from signing in.
+  keyGenerator: (req) => {
+    const identifier = String(req.body?.identifier || req.body?.email || req.body?.username || 'unknown')
+      .trim()
+      .toLowerCase()
+    return `${ipKeyGenerator(req.ip)}:${identifier}`
+  },
   skipSuccessfulRequests: true,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
